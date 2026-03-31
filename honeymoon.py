@@ -10,9 +10,9 @@ warnings.filterwarnings("ignore")
 
 
 
-# loading D¨oring, H., & Manow, P. (2024). ParlGov 2024 Release. https://doi.org/10.7910/DVN/
+# loading Doering, H., & Manow, P. (2024). ParlGov 2024 Release. https://doi.org/10.7910/DVN/
 # 2VZ5ZC, adjust path when running code
-path = "/Users/nkf/Library/CloudStorage/OneDrive-UniversitaetSt.Gallen/HSG assessment/ATP/dataverse_files"
+path = "yourpath/dataverse_files"
 
 
 
@@ -475,6 +475,6 @@ fig.update_layout(
 
 os.makedirs("/Users/nkf/Desktop/atp/figures", exist_ok=True)
 timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-fig.write_image(f"/Users/nkf/Desktop/atp/figures/honeymoon_results_{timestamp}.png")
+fig.write_image(f"yourpath/honeymoon_results_{timestamp}.png")
 print("Figure saved → honeymoon_results.png")
 
