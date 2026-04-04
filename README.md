@@ -1,4 +1,4 @@
-Replication code for OECD incumbency-advantage analysis
+Replication code for OECD PM incumbency-effect analysis
 
 Claude Code was used to write, edit, comment, and clean code
 
