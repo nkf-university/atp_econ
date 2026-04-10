@@ -456,93 +456,6 @@ print(f"""
     cost than the all-party benchmark.
 """)
 
-# Winner/loser decomposition — key analytical result
-print(f"  ─── Winner/Loser decomposition ───")
-print(f"  The benchmark includes all incumbents regardless of outcome.")
-print(f"  Decomposing the PM result by outcome:")
-print(f"    Winners (N={len(won_ce)}):  {won_ce.mean():+.3f} pp  (beat benchmark by {won_ce.mean()-BENCHMARK:+.2f} pp)")
-print(f"    Losers  (N={len(lost_ce)}):  {lost_ce.mean():+.3f} pp  (vs. benchmark: {lost_ce.mean()-BENCHMARK:+.2f} pp)")
-print(f"    All     (N={len(all_inc)}): {all_inc.mean():+.3f} pp  (vs. benchmark: {diff_from_bench:+.2f} pp)")
-print(f"\n  The aggregate PM cost exceeds the benchmark, driven primarily by")
-print(f"  the very large losses among PM parties that lose power ({lost_ce.mean():+.2f} pp).")
-print(f"  Winners bear a cost close to zero ({won_ce.mean():+.2f} pp), well above the benchmark.")
-
-# OLS
-reg = analysis.copy()
-reg["year_c"] = reg["election_year"] - reg["election_year"].mean()
-
-model_main = smf.ols(
-    "Ce ~ C(country_name) + year_c",
-    data=reg
-).fit(cov_type="cluster", cov_kwds={"groups": reg["country_name"]})
-
-int_coef = model_main.params["Intercept"]
-int_se   = model_main.bse["Intercept"]
-int_t    = model_main.tvalues["Intercept"]
-int_p2   = model_main.pvalues["Intercept"]
-int_p1   = p_one_less(int_t, int_p2)
-
-n_clusters = reg["country_name"].nunique()
-t_crit     = stats.t.ppf(0.975, df=n_clusters - 1)
-ci_ols_lo  = int_coef - t_crit * int_se
-ci_ols_hi  = int_coef + t_crit * int_se
-
-yr_coef = model_main.params["year_c"]
-yr_se   = model_main.bse["year_c"]
-yr_p    = model_main.pvalues["year_c"]
-
-print(f"""
-  ─── OLS (country FE, clustered SEs, year trend) ───
-  Equation: Ce_ct = α + γ_c + δ·Year_t + ε_ct
-
-  N = {int(model_main.nobs)}  |  Clusters = {n_clusters}  |  R² = {model_main.rsquared:.3f}
-
-  {'Variable':<35} {'Coef':>8} {'SE':>8} {'t':>8} {'p(2s)':>8}
-  {'─'*67}
-  {'Intercept (PM incumbency cost)':<35} {int_coef:>+8.3f} {int_se:>8.3f} {int_t:>8.3f} {int_p2:>8.5f}
-  {'election_year (centred)':<35} {yr_coef:>+8.3f} {yr_se:>8.3f} {model_main.tvalues['year_c']:>8.3f} {yr_p:>8.4f}
-  Country FE: Yes (suppressed)
-
-  OLS intercept: {int_coef:+.3f} pp
-  95% CI (t, df={n_clusters-1}): [{ci_ols_lo:+.3f}, {ci_ols_hi:+.3f}]
-""")
-
-# Formal OLS test vs benchmark
-t_vs_bench   = (int_coef - BENCHMARK) / int_se
-p_vs_bench_2s = 2 * (1 - stats.t.cdf(abs(t_vs_bench), df=n_clusters - 1))
-p_vs_bench_1s = p_one_less(t_vs_bench, p_vs_bench_2s)
-print(f"  ─── OLS formal test: intercept vs. benchmark ({BENCHMARK} pp) ───")
-print(f"  t = ({int_coef:+.3f} − {BENCHMARK}) / {int_se:.3f} = {t_vs_bench:.3f}")
-print(f"  p (2-sided): {p_vs_bench_2s:.5f}")
-print(f"  p (1-sided, PM cost < benchmark): {p_vs_bench_1s:.5f}  {stars(p_vs_bench_1s)}")
-
-# Term-specific OLS
-print("\n  ─── Term-specific OLS ───")
-reg["is_term2plus"] = (reg["ct"] >= 3)
-model_terms = smf.ols(
-    "Ce ~ is_term2plus + C(country_name) + year_c",
-    data=reg
-).fit(cov_type="cluster", cov_kwds={"groups": reg["country_name"]})
-
-t1_int   = model_terms.params["Intercept"]
-t2_coef  = model_terms.params["is_term2plus[T.True]"]
-t2_se    = model_terms.bse["is_term2plus[T.True]"]
-t2_t     = model_terms.tvalues["is_term2plus[T.True]"]
-t2_p2    = model_terms.pvalues["is_term2plus[T.True]"]
-
-print(f"""
-  Reference: Term 1 (CT=2)  |  N = {int(model_terms.nobs)}  |  R² = {model_terms.rsquared:.3f}
-
-  {'Variable':<35} {'Coef':>8} {'SE':>8} {'t':>8} {'p(2s)':>8}
-  {'─'*67}
-  {'Intercept (Term 1 cost)':<35} {t1_int:>+8.3f} {model_terms.bse['Intercept']:>8.3f}
-  {'Term 2+ (vs. Term 1)':<35} {t2_coef:>+8.3f} {t2_se:>8.3f} {t2_t:>8.3f} {t2_p2:>8.4f}
-  Country FE: Yes (suppressed)
-
-  Term 1 estimated cost:    {t1_int:+.3f} pp
-  Term 2+ estimated cost:   {t1_int + t2_coef:+.3f} pp  (= {t1_int:+.3f} + {t2_coef:+.3f})
-  Difference (Term 2+ − 1): {t2_coef:+.3f} pp  (p = {t2_p2:.4f}, {stars(t2_p2)})
-""")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -614,36 +527,6 @@ print(f"  Two-sample t-test (won vs lost): t={t_wl:.3f}, p(2s)={p_wl:.5f}  {star
 
 
 
-# ════════════════════════════════════════════════════════════════
-#  ██  FULL OLS TABLES
-# ════════════════════════════════════════════════════════════════
-section("FULL OLS TABLES")
-
-print(f"\n  Table A1: Main Model — PM Incumbency Cost (N&P-Comparable Design)")
-print(f"  Ce ~ country_FE + year  (CT≥2, all bids incl. losers)")
-print(f"  Clustered SEs | N = {int(model_main.nobs)} | R² = {model_main.rsquared:.3f}\n")
-print(f"  {'Variable':<35} {'Coef':>8} {'SE':>8} {'t':>8} {'p(2s)':>8}")
-print("  " + "─" * 67)
-for v in ["Intercept", "year_c"]:
-    lbl = v.replace("year_c", "election_year (centred)")
-    print(f"  {lbl:<35} {model_main.params[v]:>+8.3f} {model_main.bse[v]:>8.3f} "
-          f"{model_main.tvalues[v]:>8.3f} {model_main.pvalues[v]:>8.5f}")
-print(f"  Country FE: Yes (suppressed)")
-print(f"\n  Comparison to benchmark ({BENCHMARK:+.2f} pp):")
-print(f"    Intercept vs. benchmark:  t = {t_vs_bench:.3f},  p(1s, PM<bench) = {p_vs_bench_1s:.5f}  {stars(p_vs_bench_1s)}")
-
-print(f"\n\n  Table A2: Term-Specific Model")
-print(f"  Ce ~ Term2plus + country_FE + year  (CT≥2 only)")
-print(f"  Reference: Term 1 (CT=2) | N = {int(model_terms.nobs)} | R² = {model_terms.rsquared:.3f}\n")
-print(f"  {'Variable':<35} {'Coef':>8} {'SE':>8} {'t':>8} {'p(2s)':>8}")
-print("  " + "─" * 67)
-for v in ["Intercept", "is_term2plus[T.True]", "year_c"]:
-    if v in model_terms.params:
-        lbl = (v.replace("is_term2plus[T.True]", "Term 2+ (vs. Term 1)")
-                .replace("year_c", "election_year (centred)"))
-        print(f"  {lbl:<35} {model_terms.params[v]:>+8.3f} {model_terms.bse[v]:>8.3f} "
-              f"{model_terms.tvalues[v]:>8.3f} {model_terms.pvalues[v]:>8.4f}")
-print(f"  Country FE: Yes (suppressed)")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -663,22 +546,13 @@ print(f"""
   H2 — PM COST MORE NEGATIVE THAN BENCHMARK ({BENCHMARK:+.2f} pp):
     Difference (PM − benchmark) = {diff_from_bench:+.3f} pp
     p(1-sided, PM < benchmark) = {p_h2_1s_less:.5f}  {stars(p_h2_1s_less)}
-    OLS intercept ({int_coef:+.3f} pp) vs benchmark: p = {p_vs_bench_1s:.5f}  {stars(p_vs_bench_1s)}
-    → {'CONFIRMED ✓' if p_h2_1s_less < ALPHA else 'NOT CONFIRMED'}
-    Decomposition:
-      Winners (N={len(won_ce)}): {won_ce.mean():+.3f} pp (LESS negative than benchmark)
-      Losers  (N={len(lost_ce)}): {lost_ce.mean():+.3f} pp (MORE negative)
-      All     (N={len(all_inc)}): {all_inc.mean():+.3f} pp (MORE negative overall)
-
+ 
   H3 — GEOGRAPHIC CONSISTENCY:
     {n_negative}/{n_countries_with_data} countries ({100*n_negative/n_countries_with_data:.0f}%) show negative mean PM incumbency effect
     Binomial: p = {bp:.5f}  {stars(bp)}
     → {'CONFIRMED ✓' if bp < ALPHA else 'NOT CONFIRMED'}
 
-  TERM BREAKDOWN:
-    Term 1 (first re-election):  {t1_ce.mean():+.3f} pp  (N={len(t1_ce)})
-    Term 2+ (long tenure):       {t2p_ce.mean():+.3f} pp  (N={len(t2p_ce)})
-    Difference (Term 2+ − 1): {t2_coef:+.3f} pp  (p = {t2_p2:.4f}, {stars(t2_p2)})
+
 
  
 
